@@ -7,9 +7,9 @@ class CronParser
   # internal "mutable" time representation
   class InternalTime
     attr_accessor :year, :month, :day, :hour, :min
-    attr_accessor :time_source
+    attr_accessor :time_source, :time_zone
 
-    def initialize(time,time_source = Time)
+    def initialize(time, time_zone = 'UTC', time_source = Time)
       @year = time.year
       @month = time.month
       @day = time.day
@@ -17,10 +17,13 @@ class CronParser
       @min = time.min
 
       @time_source = time_source
+      @time_zone = time_zone
     end
 
     def to_time
-      time_source.local(@year, @month, @day, @hour, @min, 0)
+      time_source.use_zone(@time_zone) do
+        time_source.zone.local(@year, @month, @day, @hour, @min, 0)
+      end
     end
 
     def inspect
@@ -51,8 +54,9 @@ class CronParser
      "sat" => "6"
   }
 
-  def initialize(source,time_source = Time)
+  def initialize(source, time_zone = 'UTC', time_source = Time)
     @source = interpret_vixieisms(source)
+    @time_zone = time_zone
     @time_source = time_source
     validate_source
   end
@@ -79,7 +83,7 @@ class CronParser
 
   # returns the next occurence after the given date
   def next(now = @time_source.now, num = 1)
-    t = InternalTime.new(now, @time_source)
+    t = InternalTime.new(now, @time_zone, @time_source)
 
     unless time_specs[:month][0].include?(t.month)
       nudge_month(t)
@@ -108,7 +112,7 @@ class CronParser
 
   # returns the last occurence before the given date
   def last(now = @time_source.now, num=1)
-    t = InternalTime.new(now,@time_source)
+    t = InternalTime.new(now,@time_zone, @time_source)
 
     unless time_specs[:month][0].include?(t.month)
       nudge_month(t, :last)
